@@ -42,7 +42,7 @@ The `--help` option says:
 
 When you start the program (on the command line, naturally) using for example:
 
-    fill_block_device.pl --dev=sdb1 --fillpat 0 --chunksize=1024P --sync
+    wildly_fill_block_device.pl --dev=sdb1 --fillpat 0 --chunksize=1024P --sync
    
 It will pointedly ask you first:
 
