@@ -21,10 +21,11 @@ The `--help` option says:
                       Recommended otherwise it looks as if the program is very fast, but
                       it just fills up the memory buffers.
 
-    --fillpat=<PAT>   Fill pattern currently provided:: 
-                      'zero','0' for 0x00
-                      'one','1'  for 0xFF
-                      'alpha'    for 'ABCD...'
+    --fillpat=<PAT>   Fill pattern. Currently there is:
+                      > 'zero','0' for 0x00
+                      > 'one','1'  for 0xFF
+                      > 'alpha'    for 'ABCD...'
+                      > 'moon'     for the message from Iain M. Banks' 'The Algebraist'
                       Default is: alpha
 
     --chunksize=<SZ>  We write "chunks", not blocks. A chunk is an array of bytes sized 
@@ -42,7 +43,7 @@ The `--help` option says:
 
 When you start the program (on the command line, naturally) using for example:
 
-    fill_block_device.pl --dev=sdb1 --fillpat 0 --chunksize=1024P --sync
+    wildly_fill_block_device.pl --dev=sdb1 --fillpat 0 --chunksize=1024P --sync
    
 It will pointedly ask you first:
 
@@ -50,14 +51,20 @@ It will pointedly ask you first:
 
 If you decide to proceed, you will get an information scroll:
 
-    Wrote: 709 chunks,   354.50 MiB, 0.29% - ~time remaining: 00:28:03 - Overall throughput: 72.32 MiB/s - Recent throughput: 71.53 MiB/s
-    Wrote: 710 chunks,   355.00 MiB, 0.29% - ~time remaining: 00:28:03 - Overall throughput: 72.31 MiB/s - Recent throughput: 71.42 MiB/s
-    Wrote: 711 chunks,   355.50 MiB, 0.29% - ~time remaining: 00:28:03 - Overall throughput: 72.29 MiB/s - Recent throughput: 71.23 MiB/s
-    Wrote: 712 chunks,   356.00 MiB, 0.29% - ~time remaining: 00:28:03 - Overall throughput: 72.29 MiB/s - Recent throughput: 71.22 MiB/s
-    Wrote: 713 chunks,   356.50 MiB, 0.29% - ~time remaining: 00:28:03 - Overall throughput: 72.30 MiB/s - Recent throughput: 71.32 MiB/s
-    Wrote: 714 chunks,   357.00 MiB, 0.29% - ~time remaining: 00:28:03 - Overall throughput: 72.31 MiB/s - Recent throughput: 71.42 MiB/s
-    Wrote: 715 chunks,   357.50 MiB, 0.29% - ~time remaining: 00:28:03 - Overall throughput: 72.31 MiB/s - Recent throughput: 71.42 MiB/s
-    Wrote: 716 chunks,   358.00 MiB, 0.29% - ~time remaining: 00:28:03 - Overall throughput: 72.31 MiB/s - Recent throughput: 71.59 MiB/s
-    Wrote: 717 chunks,   358.50 MiB, 0.29% - ~time remaining: 00:28:03 - Overall throughput: 72.32 MiB/s - Recent throughput: 71.72 MiB/s
-    Wrote: 718 chunks,   359.00 MiB, 0.29% - ~time remaining: 00:28:03 - Overall throughput: 72.32 MiB/s - Recent throughput: 71.79 MiB/s
-    Wrote: 719 chunks,   359.50 MiB, 0.29% - ~time remaining: 00:28:02 - Overall throughput: 72.32 MiB/s - Recent throughput: 71.82 MiB/s
+    Wrote:   2658 chunks,   1329.00 MiB, 1.09% - Overall: 73.67 MiB/s - Recent: 73.87 MiB/s - time taken: 00:00:18 - ~time remaining: 00:27:14
+    Wrote:   2953 chunks,   1476.50 MiB, 1.21% - Overall: 73.68 MiB/s - Recent: 74.29 MiB/s - time taken: 00:00:20 - ~time remaining: 00:27:03
+    Wrote:   3244 chunks,   1622.00 MiB, 1.33% - Overall: 73.59 MiB/s - Recent: 73.51 MiB/s - time taken: 00:00:22 - ~time remaining: 00:27:18
+    Wrote:   3537 chunks,   1768.50 MiB, 1.45% - Overall: 73.54 MiB/s - Recent: 72.05 MiB/s - time taken: 00:00:24 - ~time remaining: 00:27:49
+    Wrote:   3832 chunks,   1916.00 MiB, 1.57% - Overall: 73.54 MiB/s - Recent: 73.27 MiB/s - time taken: 00:00:26 - ~time remaining: 00:27:19
+    Wrote:   4122 chunks,   2061.00 MiB, 1.69% - Overall: 73.45 MiB/s - Recent: 72.31 MiB/s - time taken: 00:00:28 - ~time remaining: 00:27:39
+    Wrote:   4414 chunks,   2207.00 MiB, 1.81% - Overall: 73.42 MiB/s - Recent: 73.98 MiB/s - time taken: 00:00:30 - ~time remaining: 00:27:00
+    Wrote:   4704 chunks,   2352.00 MiB, 1.93% - Overall: 73.36 MiB/s - Recent: 72.81 MiB/s - time taken: 00:00:32 - ~time remaining: 00:27:24
+    Wrote:   4998 chunks,   2499.00 MiB, 2.05% - Overall: 73.36 MiB/s - Recent: 73.94 MiB/s - time taken: 00:00:34 - ~time remaining: 00:26:57
+
+At the end of filling an SSD, you will see a major slowdown as reallocation stalls:
+
+    Wrote: 244141 chunks, 122070.50 MiB, 100.00% - ~time remaining: 00:00:00 - Overall throughput: 64.60 MiB/s - Recent throughput: 6.28 MiB/s
+    Wrote: 244142 chunks, 122071.00 MiB, 100.00% - ~time remaining: 00:00:00 - Overall throughput: 64.60 MiB/s - Recent throughput: 6.27 MiB/s
+    Wrote: 244143 chunks, 122071.50 MiB, 100.00% - ~time remaining: 00:00:00 - Overall throughput: 64.60 MiB/s - Recent throughput: 6.27 MiB/s
+    Wrote: 244144 chunks, 122072.00 MiB, 100.00% - ~time remaining: 00:00:00 - Overall throughput: 64.59 MiB/s - Recent throughput: 6.31 MiB/s
+    Wrote: 244145 chunks, 122072.34 MiB, 100.00% - ~time remaining: 00:00:00 - Overall throughput: 64.59 MiB/s - Recent throughput: 6.29 MiB/s
