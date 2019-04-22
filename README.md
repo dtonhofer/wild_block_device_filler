@@ -50,14 +50,16 @@ It will pointedly ask you first:
 
 If you decide to proceed, you will get an information scroll:
 
-    Wrote: 709 chunks,   354.50 MiB, 0.29% - ~time remaining: 00:28:03 - Overall throughput: 72.32 MiB/s - Recent throughput: 71.53 MiB/s
-    Wrote: 710 chunks,   355.00 MiB, 0.29% - ~time remaining: 00:28:03 - Overall throughput: 72.31 MiB/s - Recent throughput: 71.42 MiB/s
-    Wrote: 711 chunks,   355.50 MiB, 0.29% - ~time remaining: 00:28:03 - Overall throughput: 72.29 MiB/s - Recent throughput: 71.23 MiB/s
-    Wrote: 712 chunks,   356.00 MiB, 0.29% - ~time remaining: 00:28:03 - Overall throughput: 72.29 MiB/s - Recent throughput: 71.22 MiB/s
-    Wrote: 713 chunks,   356.50 MiB, 0.29% - ~time remaining: 00:28:03 - Overall throughput: 72.30 MiB/s - Recent throughput: 71.32 MiB/s
-    Wrote: 714 chunks,   357.00 MiB, 0.29% - ~time remaining: 00:28:03 - Overall throughput: 72.31 MiB/s - Recent throughput: 71.42 MiB/s
     Wrote: 715 chunks,   357.50 MiB, 0.29% - ~time remaining: 00:28:03 - Overall throughput: 72.31 MiB/s - Recent throughput: 71.42 MiB/s
     Wrote: 716 chunks,   358.00 MiB, 0.29% - ~time remaining: 00:28:03 - Overall throughput: 72.31 MiB/s - Recent throughput: 71.59 MiB/s
     Wrote: 717 chunks,   358.50 MiB, 0.29% - ~time remaining: 00:28:03 - Overall throughput: 72.32 MiB/s - Recent throughput: 71.72 MiB/s
     Wrote: 718 chunks,   359.00 MiB, 0.29% - ~time remaining: 00:28:03 - Overall throughput: 72.32 MiB/s - Recent throughput: 71.79 MiB/s
     Wrote: 719 chunks,   359.50 MiB, 0.29% - ~time remaining: 00:28:02 - Overall throughput: 72.32 MiB/s - Recent throughput: 71.82 MiB/s
+
+At the end of filling an SSD, you will see a major slowdown as reallocation stalls:
+
+    Wrote: 244141 chunks, 122070.50 MiB, 100.00% - ~time remaining: 00:00:00 - Overall throughput: 64.60 MiB/s - Recent throughput: 6.28 MiB/s
+    Wrote: 244142 chunks, 122071.00 MiB, 100.00% - ~time remaining: 00:00:00 - Overall throughput: 64.60 MiB/s - Recent throughput: 6.27 MiB/s
+    Wrote: 244143 chunks, 122071.50 MiB, 100.00% - ~time remaining: 00:00:00 - Overall throughput: 64.60 MiB/s - Recent throughput: 6.27 MiB/s
+    Wrote: 244144 chunks, 122072.00 MiB, 100.00% - ~time remaining: 00:00:00 - Overall throughput: 64.59 MiB/s - Recent throughput: 6.31 MiB/s
+    Wrote: 244145 chunks, 122072.34 MiB, 100.00% - ~time remaining: 00:00:00 - Overall throughput: 64.59 MiB/s - Recent throughput: 6.29 MiB/s
