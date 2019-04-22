@@ -167,9 +167,11 @@ sub main {
    my $bytesToWrite  = $devSize; # this value counts down to 0
    my $chunksWritten = 0;        # this value counts up from 0; at the very end, writing may involve a partial chunk
 
-   my $whenStarted  = Time::HiRes::time();   # floating point time; to compute overall throughput
-   my $timings      = [ [$whenStarted,0] ];  # array of "time of writing done, bytes written" to compute recent throughput
-   my $timingsDepth = 100;                   # keep 100 entries to compute recent throughput
+   my $whenStarted    = Time::HiRes::time();   # floating point time; to compute overall throughput
+   my $timings        = [ [$whenStarted,0] ];  # array of "time of writing done, bytes written" to compute recent throughput
+   my $timingsDepth   = 100;                   # keep 100 entries to compute recent throughput
+   my $nextInform     = $whenStarted;          # when to call informUser()
+   my $informInterval = 2;                     # seconds
 
    # The loop:
    #   1) seek to writing position
@@ -199,10 +201,14 @@ sub main {
 
       $chunksWritten++; 
       $bytesToWrite -= $actuallyWritten;
-      push @$timings, [ Time::HiRes::time(), $actuallyWritten ];  # add timing at end
-      if (@$timings > $timingsDepth) { shift @$timings }          # keep limited number of timings
+      my $now = Time::HiRes::time();
+      push @$timings, [ $now, $actuallyWritten ];         # add timing at end
+      if (@$timings > $timingsDepth) { shift @$timings }  # keep limited number of timings
 
-      informUser($devSize,$bytesToWrite,$whenStarted,$chunksWritten,$timings);
+      if ($now >= $nextInform || $bytesToWrite == 0) {
+         informUser($devSize,$bytesToWrite,$whenStarted,$chunksWritten,$timings);
+         $nextInform = $now + $informInterval
+      }
    }
 
    close($devfh) or die "Could not close device " . $$params{dev} . ": $!\n";
@@ -364,6 +370,34 @@ sub prepareChunk {
       }
       $packed = pack "A*",join("",@$buffer); # pack ASCII array
    }
+   elsif ($fillpat eq 'moon') {
+      # The final message from Ian M. Banks' "The Algebraist" (c) 2004 Iain M. Banks
+      my $template =
+      "I was born in a water moon. Some people, especially its inhabitants, called it a planet, "
+      ."but as it was only a little over two hundred kilometres in diameter, 'moon' seems the more "
+      ."accurate term. The moon was made entirely of water, by which I mean it was a globe that not "
+      ."only had no land, but no rock either, a sphere with no solid core at all, just liquid water, "
+      ."all the way down to the very centre of the globe.\n\nIf it had been much bigger the moon would "
+      ."have had a core of ice, for water, though supposedly incompressible, is not entirely so, "
+      ."and will change under extremes of pressure to become ice. (If you are used to living on a "
+      ."planet where ice floats on the surface of water, this seems odd and even wrong, but "
+      ."nevertheless it is the case.) The moon was not quite of a size for an ice core to form, "
+      ."and therefore one could, if one was sufficiently hardy, and adequately proof against the "
+      ."water pressure, make one's way down, through the increasing weight of water above, to the "
+      ."very centre of the moon.\n\nWhere a strange thing happened.\n\nFor here, at the very centre "
+      ."of this watery globe, there seemed to be no gravity. There was colossal pressure, certainly, "
+      ."pressing in from every side, but one was in effect weightless (on the outside of a planet, "
+      ."moon or other body, watery or not, one is always being pulled towards its centre; once at "
+      ."its centre one is being pulled equally in all directions), and indeed the pressure around "
+      ."one was, for the same reason, not quite as great as one might have expected it to be, given "
+      ."the mass of water that the moon was made up from.\n\nThis was, of course,";
+      my $repeatTemplate = ""; # Ok, so this won't repeat exactly at chunk boundaries. SAD!
+      my $lentemp = length($template);
+      my $bytesToWrite = $chunkSize;
+      while ($bytesToWrite >= $lentemp) { $repeatTemplate .= $template; $bytesToWrite -= $lentemp }
+      $repeatTemplate .= substr($template,0,$bytesToWrite);
+      $packed = pack "A*",$repeatTemplate
+   }
    else {
       die "Unknown file pattern '$fillpat'\n"
    }
@@ -375,49 +409,60 @@ sub prepareChunk {
 # Printing out while the write loop runs
 # ===
 
+
 sub informUser {
    my($devSize,$bytesToWrite,$whenStarted,$chunksWritten,$timings) = @_;
 
-   my $bytesWritten = ($devSize - $bytesToWrite);
-   my $percentDone  = ($bytesWritten * 100.0) / $devSize;
-   my $percentDone2 = sprintf("%.2f",$percentDone);
-   my $mibWritten   = $bytesWritten/(1024.0*1024.0);
-   my $mibWritten2  = sprintf("%8.2f",$mibWritten);
- 
-   print STDERR "Wrote: $chunksWritten chunks, $mibWritten2 MiB, $percentDone2%";
+   my $mibFactor = 1048576.0;
 
+   my $bytesWritten = ($devSize - $bytesToWrite);
+   my $mibWritten   = $bytesWritten / $mibFactor;
    my $deltaOverall = Time::HiRes::time() - $whenStarted;
 
-   if ($percentDone > 0.01) {
-      my $timeRemaining = ($deltaOverall/$percentDone) * (100-$percentDone);
-      print STDERR " - ~time remaining: ", timeToHMS($timeRemaining)
+   my $baseMsg              = "Wrote: " . sprintf("%6d",$chunksWritten) . " chunks";
+   my $doneSoFarMsg         = "";
+   my $overallThroughputMsg = "";
+   my $recentThroughputMsg  = "";
+   my $timeRemainingMsg     = "";
+   my $timeTakenMsg         = " - time taken: " . timeToHMS($deltaOverall);
+
+   {
+      my $percentDone  = ($bytesWritten * 100.0) / $devSize;
+      my $percentDone2 = sprintf("%.2f",$percentDone);
+      my $mibWritten2  = sprintf("%9.2f",$mibWritten);
+      $doneSoFarMsg = ", $mibWritten2 MiB, $percentDone2%"
    }
 
    if ($deltaOverall >= 1) { # only after 1s
-      my $mibWritten    = $bytesWritten / (1024.0*1024.0);
       my $mibPerSecond  = $mibWritten / $deltaOverall;
       my $mibPerSecond2 = sprintf("%.2f",$mibPerSecond); 
-      print STDERR " - Overall throughput: $mibPerSecond2 MiB/s";
+      $overallThroughputMsg = " - Overall: $mibPerSecond2 MiB/s";
    }
 
-   if ($deltaOverall >= 1) { # only after 1s
+   if ($deltaOverall >= 1) { # only after 1s to get good numbers/not divide by 0
+      # add the bytes written registered in "timings" so far, 
+      # except the bytes of the oldest chunk (which is not considered in the total bytes)
       my $bytesWrittenRecently = 0;
-      # add the bytes written registered in "timings" so far, except the first entry
       for (my $i = 1; $i < @$timings; $i++) {
          my $subArray          =  $$timings[$i];
          $bytesWrittenRecently += $$subArray[1];
       }
-      my $mibWrittenRecently = $bytesWrittenRecently / (1024.0*1024.0);
-      # the time taken is the difference between the last registration and the first
-      my $subArrayFirst = $$timings[0];
-      my $subArrayLast  = $$timings[-1];
-      my $deltaRecently = $$subArrayLast[0] - $$subArrayFirst[0];
-      my $mibPerSecond  = $mibWrittenRecently / $deltaRecently;
-      my $mibPerSecond2 = sprintf("%.2f",$mibPerSecond); 
-      print STDERR " - Recent throughput: $mibPerSecond2 MiB/s";
+      if ($bytesWrittenRecently > 0) {
+         # the "time taken" is the difference between the last timing 
+         # (after most recent chunk written) and the first timing (after most ancient chunk written)
+         my $subArrayFirst = $$timings[0];
+         my $subArrayLast  = $$timings[-1];
+         my $deltaRecently = $$subArrayLast[0] - $$subArrayFirst[0];
+         my $mibWrittenRecently = $bytesWrittenRecently / $mibFactor;
+         my $mibPerSecond       = $mibWrittenRecently / $deltaRecently;
+         my $mibPerSecond2      = sprintf("%.2f",$mibPerSecond); 
+         $recentThroughputMsg   = " - Recent: $mibPerSecond2 MiB/s";
+         my $timeRemaining      = ( $bytesToWrite / $bytesWrittenRecently ) * $deltaRecently;
+         $timeRemainingMsg      = " - ~time remaining: " . timeToHMS($timeRemaining)
+      }
    }
 
-   print "\n";
+   print STDERR $baseMsg, $doneSoFarMsg, $overallThroughputMsg, $recentThroughputMsg, $timeTakenMsg, $timeRemainingMsg, "\n";
 }
 
 # ===
@@ -505,6 +550,9 @@ sub handleCmdlineArgs {
       elsif ($fillpat =~ /^alpha/) {
          $fillpat = 'alpha'
       }
+      elsif ($fillpat =~ /^moon/) {
+         $fillpat = 'moon'
+      }
       else {
          print STDERR "Unknown fill pattern '$fillpat' - select one of 0,1,zero,one,alpha!\n";
          $error = 1
@@ -561,10 +609,11 @@ Fill a partition or a disk with meaningless data.
                   Recommended otherwise it looks as if the program is very fast, but
                   it just fills up the memory buffers.
 
---fillpat=<PAT>   Fill pattern currently provided:: 
-                  'zero','0' for 0x00
-                  'one','1'  for 0xFF
-                  'alpha'    for 'ABCD...'
+--fillpat=<PAT>   Fill pattern. Currently there is:
+                  > 'zero','0' for 0x00
+                  > 'one','1'  for 0xFF
+                  > 'alpha'    for 'ABCD...'
+                  > 'moon'     for the message from Iain M. Banks' 'The Algebraist'
                   Default is: $deffip
 
 --chunksize=<SZ>  We write "chunks", not blocks. A chunk is an array of bytes sized 
