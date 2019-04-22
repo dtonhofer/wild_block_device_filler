@@ -1,5 +1,56 @@
 #!/usr/bin/perl
 
+# 23456789012345678901234567890123456789012345678901234567890123456789012345678901234567
+# ======================================================================================
+# This program writes a disk or partition full of ones, zeros or alphanumerics.
+# Good for speed testing, erasing, or evaluating what the SSD does.
+#
+# ===
+# Authors: David Tonhofer (2019-04)
+# License: "The Unlicense" (https://unlicense.org/)
+#          This is free and unencumbered software released into the public domain.
+# ===
+#
+# The program calls "lsblk" to get information about the system. So you need to have
+# that utility.
+#
+# Additionally, you may have to install the following perl modules:
+#
+# JSON::Parse - install with:  dnf install perl-JSON-Parse
+# File::Sync  - install with:  dnf install perl-File-Sync
+#
+# The "--help" option says:
+#
+# Fill a partition or a disk with meaningless data.
+#
+# --dev=<DEV>       Device file, must be given. '/dev/sdbx', 'sdbx', '/dev/sdg', 'sdg'
+#                   are accepted here.
+#
+# --debug           Write debugging output to stderr.
+#
+# --sync            Call fdatasync(2) after each write operation, flushing data to disk. 
+#                   Recommended otherwise it looks as if the program is very fast, but
+#                   it just fills up the memory buffers.
+#
+# --fillpat=<PAT>   Fill pattern currently provided:: 
+#                   'zero','0' for 0x00
+#                   'one','1'  for 0xFF
+#                   'alpha'    for 'ABCD...' (the default)
+#
+# --chunksize=<SZ>  We write "chunks", not blocks. A chunk is an array of bytes sized 
+#                   at several KiB, MiB or multiples of the disk's PHYSICAL BLOCK SIZE
+#                   (amount of data that the disk prefers to read/write in one operation,
+#                   e.g. 4K) or multiples of the disk's LOGICAL BLOCK SIZE (smaller or equal
+#                   to the physical block size, for fine-grained, but slow addressing).
+#                   This sets the chunk size. Format is <num><unit>, where <unit> is one of:
+#                   > Nothing or 'B' for Byte
+#                   > 'K' for KiB
+#                   > 'M' for MiB
+#                   > 'P' for physical blocks
+#                   > 'L' for logical blocks
+#                   Default is: 1024L.
+#
+
 use JSON::Parse qw(parse_json);     # dnf install perl-JSON-Parse
 use Data::Dumper;                   # Perl core module (to dump data structures)
 use Fcntl qw(SEEK_SET);             # Perl core module
@@ -7,30 +58,13 @@ use File::Sync qw(fsync fdatasync); # dnf install perl-File-Sync
 use Getopt::Long;                   # Perl core module (to process long options)
 use File::Basename;                 # Perl core module (to obtain file basename & dirname)
 use File::Spec;                     # Perl core module (https://perldoc.perl.org/File/Spec.html)
+use Time::HiRes;                    # Perl core module;
 
 use warnings;
 use strict;
 use utf8;  # Meaning "This lexical scope (i.e. file) contains utf8"
 
 my $lsblk = "/usr/bin/lsblk";
-
-# =============================================================================================
-# This program writes a disk or partition full of ones, zeros or alphanumerics.
-# Good for speed testing, erasing or seeing what the SSD does.
-#
-# The help says:
-#
-# Fill a partition or a disk with meaningless data.
-#
-# --dev=<DEV>       Device file, must be given. '/dev/sdbx' or 'sdbx' are accepted here.
-# --debug           Write debugging output to stderr.
-# --sync            Call fdatasync(2) after each write operation, flushing data to disk. Recommended!
-# --fillpat=<PAT>   Fill pattern: 'zero|0' for 0x00, 'one|1' for 0xFF, 'alpha' for 'ABCD...'. Default: alpha.
-# --chunksize=<SZ>  We write chunks. This sets the chunk size. Format is <num><unit>, where <unit> is one of:
-#                   Nothing or 'B' for Byte, 'K' for KiB, 'M' for MiB, 'P' for physical blocks, 'L' for logical blocks.
-#                   Default is: 1024L.
-#
-# =============================================================================================
 
 main();
 
@@ -128,46 +162,52 @@ sub main {
    # There may be a rest at the end of less than "packed" array size bytes (a multiple of logical blocks)
    # which is handled separately.
 
-   my $dfh;
-   open ($dfh, ">", $$params{dev}) or die "Could not open device " . $$params{dev} . " for writing: $!";
+   open (my $devfh, ">", $$params{dev}) or die "Could not open device " . $$params{dev} . " for writing: $!";
 
-   my $bytesToWrite = $devSize;
-   my $start = time;
+   my $bytesToWrite  = $devSize; # this value counts down to 0
+   my $chunksWritten = 0;        # this value counts up from 0; at the very end, writing may involve a partial chunk
 
-   my $i = 0;
+   my $whenStarted  = Time::HiRes::time();   # floating point time; to compute overall throughput
+   my $timings      = [ [$whenStarted,0] ];  # array of "time of writing done, bytes written" to compute recent throughput
+   my $timingsDepth = 100;                   # keep 100 entries to compute recent throughput
 
-   my $sync = $$params{sync};
+   # The loop:
+   #   1) seek to writing position
+   #   2) write a chunk or less than a chunk at the end of the device
+   #   3) sync if so demanded
+   #   4) inform user about how much has been written so far
 
    while ($bytesToWrite > 0) {
 
-      my $writePos = $chunkSize * $i;
+      my $writePos = $chunkSize * $chunksWritten;
+      my $canWrite = min($bytesToWrite,$chunkSize);
 
-      seek($dfh, $writePos, SEEK_SET) or die "Could not seek to position $writePos: $!\n";
+      seek($devfh, $writePos, SEEK_SET) or die "Could not seek to position $writePos: $!\n";
 
-      my $canWrite = min(($bytesToWrite - $writePos),$chunkSize);
+      my $actuallyWritten = syswrite($devfh,$chunk,$canWrite); # write whole or part of chunk at the end
 
-      my $written = syswrite($dfh,$chunk,$canWrite); # write whole or part of chunk
-
-      if (!defined $written) {
-         die "Could not write $canWrite bytes of chunk of size $chunkSize at position $writePos: $!\n"
+      if (!defined $actuallyWritten) {
+         die "Could not write $canWrite bytes at position $writePos: $!\n"
       }
-      if ($written != $canWrite) {
-         die "Could only write $written bytes instead of $canWrite byte at position $writePos: $!\n"
+      if ($actuallyWritten != $canWrite) {
+         die "Could only write $actuallyWritten bytes instead of $canWrite bytes at position $writePos: $!\n"
       }
  
-      if ($sync) {
-         fdatasync($dfh) or die "fdatasync: $!";
+      if ($$params{sync}) {
+         fdatasync($devfh) or die "fdatasync failed: $!\n"
       }
 
-      $i++;
-      $bytesToWrite -= $canWrite;
+      $chunksWritten++; 
+      $bytesToWrite -= $actuallyWritten;
+      push @$timings, [ Time::HiRes::time(), $actuallyWritten ];  # add timing at end
+      if (@$timings > $timingsDepth) { shift @$timings }          # keep limited number of timings
 
-      informUser($devSize,$bytesToWrite,$start,$i);
+      informUser($devSize,$bytesToWrite,$whenStarted,$chunksWritten,$timings);
    }
 
-   close($dfh) or die "Could not close device file: $!\n";
+   close($devfh) or die "Could not close device " . $$params{dev} . ": $!\n";
 
-   die "bytes-to-write not 0" if $bytesToWrite != 0;
+   die "bytesToWrite should be 0 at end of loop but is $bytesToWrite" if $bytesToWrite != 0;
 
 }
 
@@ -263,9 +303,9 @@ sub extractDeviceInfoFromJson {
    return $myblockdev
 }
 
-# ---
+# ===
 # How large is the "chunk" to write?
-# ---
+# ===
 
 sub computeChunkSizeInByte {
    my($cs_val,$cs_unit,$phyBlockSize,$logBlockSize) = @_;   
@@ -336,19 +376,60 @@ sub prepareChunk {
 # ===
 
 sub informUser {
-   my($devSize,$bytesToWrite,$start,$i) = @_;
+   my($devSize,$bytesToWrite,$whenStarted,$chunksWritten,$timings) = @_;
+
    my $bytesWritten = ($devSize - $bytesToWrite);
-   my $percent  = ($bytesWritten * 100.0) /$devSize;
-   my $percent2 = sprintf("%.2f",$percent);
-   print STDERR "Wrote chunk $i, $bytesWritten bytes written, $percent2%";
-   my $delta = time - $start;
-   if ($delta >= 1) { # only after 1s
-      my $mibWritten = $bytesWritten / (1024*1024) * 1.0;
-      my $mibps = $mibWritten / $delta;
-      $mibps = sprintf("%.2f",$mibps); 
-      print "; $mibps MiB/s";         
+   my $percentDone  = ($bytesWritten * 100.0) / $devSize;
+   my $percentDone2 = sprintf("%.2f",$percentDone);
+   my $mibWritten   = $bytesWritten/(1024.0*1024.0);
+   my $mibWritten2  = sprintf("%8.2f",$mibWritten);
+ 
+   print STDERR "Wrote: $chunksWritten chunks, $mibWritten2 MiB, $percentDone2%";
+
+   my $deltaOverall = Time::HiRes::time() - $whenStarted;
+
+   if ($percentDone > 0.01) {
+      my $timeRemaining = ($deltaOverall/$percentDone) * (100-$percentDone);
+      print STDERR " - ~time remaining: ", timeToHMS($timeRemaining)
    }
+
+   if ($deltaOverall >= 1) { # only after 1s
+      my $mibWritten    = $bytesWritten / (1024.0*1024.0);
+      my $mibPerSecond  = $mibWritten / $deltaOverall;
+      my $mibPerSecond2 = sprintf("%.2f",$mibPerSecond); 
+      print STDERR " - Overall throughput: $mibPerSecond2 MiB/s";
+   }
+
+   if ($deltaOverall >= 1) { # only after 1s
+      my $bytesWrittenRecently = 0;
+      # add the bytes written registered in "timings" so far, except the first entry
+      for (my $i = 1; $i < @$timings; $i++) {
+         my $subArray          =  $$timings[$i];
+         $bytesWrittenRecently += $$subArray[1];
+      }
+      my $mibWrittenRecently = $bytesWrittenRecently / (1024.0*1024.0);
+      # the time taken is the difference between the last registration and the first
+      my $subArrayFirst = $$timings[0];
+      my $subArrayLast  = $$timings[-1];
+      my $deltaRecently = $$subArrayLast[0] - $$subArrayFirst[0];
+      my $mibPerSecond  = $mibWrittenRecently / $deltaRecently;
+      my $mibPerSecond2 = sprintf("%.2f",$mibPerSecond); 
+      print STDERR " - Recent throughput: $mibPerSecond2 MiB/s";
+   }
+
    print "\n";
+}
+
+# ===
+# Helper from the PerlMonks
+# ===
+
+sub timeToHMS {
+  my $seconds = int(shift);
+  my $hours = int( $seconds / (60*60) );
+  my $mins = ( $seconds / 60 ) % 60;
+  my $secs = $seconds % 60;
+  return sprintf("%02d:%02d:%02d", $hours,$mins,$secs);
 }
 
 # ===
@@ -468,14 +549,37 @@ sub handleCmdlineArgs {
          print STDERR "$exe\n";
          print STDERR "-" x length($exe), "\n";
       }
-      print STDERR "Fill a partition or a disk with meaningless data.\n\n";
-      print STDERR "--dev=<DEV>       Device file, must be given. '/dev/sdbx' or 'sdbx' are accepted here.\n";
-      print STDERR "--debug           Write debugging output to stderr.\n";
-      print STDERR "--sync            Call fdatasync(2) after each write operation, flushing data to disk. Recommended!\n";
-      print STDERR "--fillpat=<PAT>   Fill pattern: 'zero|0' for 0x00, 'one|1' for 0xFF, 'alpha' for 'ABCD...'. Default: $deffip.\n";
-      print STDERR "--chunksize=<SZ>  We write chunks. This sets the chunk size. Format is <num><unit>, where <unit> is one of:\n";
-      print STDERR "                  Nothing or 'B' for Byte, 'K' for KiB, 'M' for MiB, 'P' for physical blocks, 'L' for logical blocks.\n";
-      print STDERR "                  Default is: $defckz.\n";
+      print STDERR <<MSG
+Fill a partition or a disk with meaningless data.
+
+--dev=<DEV>       Device file, must be given. '/dev/sdbx', 'sdbx', '/dev/sdg', 'sdg'
+                  are accepted here.
+
+--debug           Write debugging output to stderr.
+
+--sync            Call fdatasync(2) after each write operation, flushing data to disk. 
+                  Recommended otherwise it looks as if the program is very fast, but
+                  it just fills up the memory buffers.
+
+--fillpat=<PAT>   Fill pattern currently provided:: 
+                  'zero','0' for 0x00
+                  'one','1'  for 0xFF
+                  'alpha'    for 'ABCD...'
+                  Default is: $deffip
+
+--chunksize=<SZ>  We write "chunks", not blocks. A chunk is an array of bytes sized 
+                  at several KiB, MiB or multiples of the disk's PHYSICAL BLOCK SIZE
+                  (amount of data that the disk prefers to read/write in one operation,
+                  e.g. 4K) or multiples of the disk's LOGICAL BLOCK SIZE (smaller or equal
+                  to the physical block size, for fine-grained, but slow addressing).
+                  This sets the chunk size. Format is <num><unit>, where <unit> is one of:
+                  > Nothing or 'B' for Byte
+                  > 'K' for KiB
+                  > 'M' for MiB
+                  > 'P' for physical blocks
+                  > 'L' for logical blocks
+                  Default is: $defckz
+MSG
    }
 
    die  if $error;
