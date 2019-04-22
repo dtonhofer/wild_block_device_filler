@@ -63,8 +63,9 @@ If you decide to proceed, you will get an information scroll:
 
 At the end of filling an SSD, you will see a major slowdown as reallocation stalls:
 
-    Wrote: 244141 chunks, 122070.50 MiB, 100.00% - ~time remaining: 00:00:00 - Overall throughput: 64.60 MiB/s - Recent throughput: 6.28 MiB/s
-    Wrote: 244142 chunks, 122071.00 MiB, 100.00% - ~time remaining: 00:00:00 - Overall throughput: 64.60 MiB/s - Recent throughput: 6.27 MiB/s
-    Wrote: 244143 chunks, 122071.50 MiB, 100.00% - ~time remaining: 00:00:00 - Overall throughput: 64.60 MiB/s - Recent throughput: 6.27 MiB/s
-    Wrote: 244144 chunks, 122072.00 MiB, 100.00% - ~time remaining: 00:00:00 - Overall throughput: 64.59 MiB/s - Recent throughput: 6.31 MiB/s
-    Wrote: 244145 chunks, 122072.34 MiB, 100.00% - ~time remaining: 00:00:00 - Overall throughput: 64.59 MiB/s - Recent throughput: 6.29 MiB/s
+    Wrote: 244049 chunks, 122024.50 MiB, 99.96% - Overall: 65.59 MiB/s - Recent: 5.81 MiB/s - time taken: 00:31:00 - ~time remaining: 00:00:08
+    Wrote: 244071 chunks, 122035.50 MiB, 99.97% - Overall: 65.52 MiB/s - Recent: 5.80 MiB/s - time taken: 00:31:02 - ~time remaining: 00:00:06
+    Wrote: 244093 chunks, 122046.50 MiB, 99.98% - Overall: 65.46 MiB/s - Recent: 5.39 MiB/s - time taken: 00:31:04 - ~time remaining: 00:00:04
+    Wrote: 244122 chunks, 122061.00 MiB, 99.99% - Overall: 65.39 MiB/s - Recent: 5.81 MiB/s - time taken: 00:31:06 - ~time remaining: 00:00:01
+    Wrote: 244144 chunks, 122072.00 MiB, 100.00% - Overall: 65.33 MiB/s - Recent: 5.83 MiB/s - time taken: 00:31:08 - ~time remaining: 00:00:00
+    Wrote: 244145 chunks, 122072.34 MiB, 100.00% - Overall: 65.33 MiB/s - Recent: 5.84 MiB/s - time taken: 00:31:08 - ~time remaining: 00:00:00
