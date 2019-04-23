@@ -14,6 +14,12 @@ Good for:
    * Erasing the disk, filling it with zeros.
    * Seeing what the SSD does, and whether TRIMs did anything etc.
    
+## License
+
+The UNLICENSE: https://unlicense.org/
+
+> This is free and unencumbered software released into the public domain.
+
 ## Status
 
 Works perfectly well on Fedora 29.
