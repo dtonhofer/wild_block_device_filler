@@ -1,12 +1,24 @@
 # wild_block_device_filler
 
-A simple (actually somewhat complex) Perl program to fill a partition or a disk with lots of 0x00, 0xFF or alphanumerics!
+## What is this
+
+A simple Perl program to fill a partition or a disk with lots of 0x00, 0xFF or alphanumerics. Meant for Linux/Unix.
+
+It calls the tool `lsblk(8)` to get information about available block devices, so you must have that on your system!
+
+At 650+ lines, it looks complex, but the complexity resides in the handling of the input options mainly.
 
 Good for:
 
    * Speed testing (how does throughput change when writing 100 physical blocks vs 1000 physical blocks?)
    * Erasing the disk, filling it with zeros.
    * Seeing what the SSD does, and whether TRIMs did anything etc.
+   
+## Status
+
+Works perfectly well on Fedora 29.
+
+## Usage
 
 The `--help` option says:
 
