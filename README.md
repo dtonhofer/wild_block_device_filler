@@ -32,8 +32,8 @@ The UNLICENSE: https://unlicense.org/
    
 Non-core Perl modules that you need are:
 
-   * `JSON::Parse`  -- try `dnf install perl-JSON-Parse` to install on systems using `dnf`
-   * `File::Sync`   -- try `dnf install perl-File-Sync`  to install on systems using `dnf`
+   * `JSON::Parse`
+   * `File::Sync`
 
 On systems that use `dnf` as installer:
 
