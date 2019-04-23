@@ -27,7 +27,7 @@ The UNLICENSE: https://unlicense.org/
 ## How to deploy
 
    * Make sure the `lsblk(8)` tool exists on your machine.
-   * Put the single Perl script wherever you prefer.
+   * Put the single Perl script wherever you prefer. Make it executable.
    * Make sure needed Perl modules have been installed. 
    
 Non-core Perl modules that you need are:
