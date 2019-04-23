@@ -14,17 +14,34 @@ Good for:
    * Erasing the disk, filling it with zeros.
    * Seeing what the SSD does, and whether TRIMs did anything etc.
    
+## Status
+
+Works perfectly well on Fedora 29.
+
 ## License
 
 The UNLICENSE: https://unlicense.org/
 
 > This is free and unencumbered software released into the public domain.
 
-## Status
+## How to deploy
 
-Works perfectly well on Fedora 29.
+   * Make sure the `lsblk(8)` tool exists on your machine.
+   * Put the single Perl script wherever you prefer.
+   * Make sure needed Perl modules have been installed. 
+   
+Non-core Perl modules that you need are:
+
+   * `JSON::Parse`  -- try `dnf install perl-JSON-Parse` to install on systems using `dnf`
+   * `File::Sync`   -- try `dnf install perl-File-Sync`  to install on systems using `dnf`
+
+On systems that use `dnf` as installer:
+
+    dnf install perl-JSON-Parse perl-File-Sync
 
 ## Usage
+
+To be able to write to the block device, this program must (most probably) be run as `root`!
 
 The `--help` option says:
 
