@@ -302,8 +302,8 @@ sub extractDeviceInfoFromJson {
  
    my $type = $$myblockdev{type};
 
-   if ($type ne "part" && $type ne "disk") {
-      die "Blockdevice is not a 'part' (partition) nor a 'disk' but a '$type' -- exiting!\n"
+   if ($type ne "part" && $type ne "disk" && $type ne "crypt") {
+      die "Blockdevice is not a 'part' (partition) nor a 'crypt' (encrypted block device) nor a 'disk' but a '$type' -- exiting!\n"
    }
 
    return $myblockdev
@@ -433,20 +433,33 @@ sub informUser {
       $doneSoFarMsg = ", $mibWritten2 MiB, $percentDone2%"
    }
 
-   if ($deltaOverall >= 1) { # only after 1s
+   if ($deltaOverall >= 1) { 
+      # Only after at least 1s
       my $mibPerSecond  = $mibWritten / $deltaOverall;
       my $mibPerSecond2 = sprintf("%.2f",$mibPerSecond); 
-      $overallThroughputMsg = " - Overall: $mibPerSecond2 MiB/s";
+      $overallThroughputMsg = " - Overall: $mibPerSecond2 MiB/s"
    }
 
-   if ($deltaOverall >= 1) { # only after 1s to get good numbers/not divide by 0
-      # add the bytes written registered in "timings" so far, 
+   if ($bytesWritten > 0) {
+      # Compute "time remaining" based on the overall throughput; computing it
+      # based on the "recent" throughput" makes it fluctuate wildly
+      my $timeRemaining      = ( $bytesToWrite / $bytesWritten ) * $deltaOverall;
+      $timeRemainingMsg      = " - ~time remaining: " . timeToHMS($timeRemaining)
+   }
+
+   if ($deltaOverall >= 1) {
+      # Only after at least 1s to get good numbers/not divide by 0.
+      # Add the bytes written registered in "timings" so far, 
       # except the bytes of the oldest chunk (which is not considered in the total bytes)
+
       my $bytesWrittenRecently = 0;
+
       for (my $i = 1; $i < @$timings; $i++) {
          my $subArray          =  $$timings[$i];
-         $bytesWrittenRecently += $$subArray[1];
+         $bytesWrittenRecently += $$subArray[1]
       }
+
+      my $timeRemainingRecently;
       if ($bytesWrittenRecently > 0) {
          # the "time taken" is the difference between the last timing 
          # (after most recent chunk written) and the first timing (after most ancient chunk written)
@@ -457,8 +470,8 @@ sub informUser {
          my $mibPerSecond       = $mibWrittenRecently / $deltaRecently;
          my $mibPerSecond2      = sprintf("%.2f",$mibPerSecond); 
          $recentThroughputMsg   = " - Recent: $mibPerSecond2 MiB/s";
-         my $timeRemaining      = ( $bytesToWrite / $bytesWrittenRecently ) * $deltaRecently;
-         $timeRemainingMsg      = " - ~time remaining: " . timeToHMS($timeRemaining)
+         # $timeRemainingRecently = ( $bytesToWrite / $bytesWrittenRecently ) * $deltaRecently;
+         # $timeRemainingMsg      = " - ~time remaining: " . timeToHMS($timeRemainingRecently)
       }
    }
 
