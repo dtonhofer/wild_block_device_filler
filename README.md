@@ -16,7 +16,7 @@ Good for:
    
 ## Status
 
-Works perfectly well on Fedora 29.
+Works perfectly well on Fedora 29 ... Fedora 36 (and counting).
 
 ## License
 
